@@ -5,15 +5,12 @@ export function authMiddleware(
   res: Response,
   next: NextFunction,
 ): void {
-  const header = req.header('X-User-Id');
+  // TODO: Student implementation - Part 1: Authentication Middleware
+  // Store the authenticated userId on res.locals.userId
+  const userIdHeader = req.header('X-User-Id');
+  const userId = Number(userIdHeader);
 
-  if (header === undefined || header === '') {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-
-  const userId = Number(header);
-  if (!Number.isInteger(userId) || userId <= 0) {
+  if (!userIdHeader || !Number.isInteger(userId) || userId <= 0) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }

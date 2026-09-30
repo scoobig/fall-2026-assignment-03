@@ -1,39 +1,33 @@
 import { Router, Request, Response } from 'express';
-import { createUser, getAllUsers, getUserById } from '../dal/users.js';
+import * as userDal from '../dal/users.js';
 
 const router = Router();
 
-router.get('/', async (_req: Request, res: Response) => {
-  const users = await getAllUsers();
-  res.status(200).json(users);
+// TODO: Student implementation - Part 1: User Routes
+// GET /users
+router.get('/', async (req: Request, res: Response) => {
+  const users = await userDal.getAllUsers();
+  res.json(users);
 });
 
+// GET /users/:id
 router.get('/:id', async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  if (!Number.isInteger(id)) {
-    res.status(404).json({ error: 'User not found' });
-    return;
-  }
+  const id = parseInt(req.params.id, 10);
+  const user = await userDal.getUserById(id);
 
-  const user = await getUserById(id);
   if (!user) {
     res.status(404).json({ error: 'User not found' });
     return;
   }
 
-  res.status(200).json(user);
+  res.json(user);
 });
 
+// POST /users
 router.post('/', async (req: Request, res: Response) => {
-  const { name, email } = req.body ?? {};
-
-  if (typeof name !== 'string' || typeof email !== 'string') {
-    res.status(400).json({ error: 'name and email are required strings' });
-    return;
-  }
-
-  const user = await createUser({ name, email });
-  res.status(201).json(user);
+  const { name, email } = req.body;
+  const newUser = await userDal.createUser({ name, email });
+  res.status(201).json(newUser);
 });
 
 export default router;

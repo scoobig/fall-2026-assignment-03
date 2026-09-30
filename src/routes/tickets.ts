@@ -1,136 +1,90 @@
 import { Router, Request, Response } from 'express';
-import authMiddleware from '../middleware/auth.js';
-import {
-  createTicket,
-  getAllTickets,
-  getTicketById,
-  updateTicketStatus,
-} from '../dal/tickets.js';
-import { getTotalHoursForTicket, insertTimeLog } from '../dal/timeLogs.js';
+import * as ticketDal from '../dal/tickets.js';
+import * as timeLogDal from '../dal/timeLogs.js';
+import { authMiddleware } from '../middleware/auth.js';
 
 const router = Router();
 
+// TODO: Student implementation - Part 1: Ticket Routes
+// GET /tickets
 router.get('/', async (req: Request, res: Response) => {
   const limit =
     req.query.limit !== undefined ? Number(req.query.limit) : undefined;
   const offset =
     req.query.offset !== undefined ? Number(req.query.offset) : undefined;
   const status =
-    typeof req.query.status === 'string' ? req.query.status : undefined;
+    req.query.status !== undefined ? String(req.query.status) : undefined;
 
-  const tickets = await getAllTickets({
-    limit: Number.isFinite(limit) ? limit : undefined,
-    offset: Number.isFinite(offset) ? offset : undefined,
-    status,
-  });
-
-  res.status(200).json(tickets);
+  const tickets = await ticketDal.getAllTickets({ limit, offset, status });
+  res.json(tickets);
 });
 
+// GET /tickets/:id
 router.get('/:id', async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  if (!Number.isInteger(id)) {
-    res.status(404).json({ error: 'Ticket not found' });
-    return;
-  }
+  const id = parseInt(req.params.id, 10);
+  const ticket = await ticketDal.getTicketById(id);
 
-  const ticket = await getTicketById(id);
   if (!ticket) {
     res.status(404).json({ error: 'Ticket not found' });
     return;
   }
 
-  res.status(200).json(ticket);
+  res.json(ticket);
 });
 
+// POST /tickets
 router.post('/', authMiddleware, async (req: Request, res: Response) => {
-  const { title, description } = req.body ?? {};
+  const { title, description } = req.body;
+  const creatorId = res.locals.userId;
 
-  if (typeof title !== 'string') {
-    res.status(400).json({ error: 'title is required' });
-    return;
-  }
-
-  const ticket = await createTicket({
+  const newTicket = await ticketDal.createTicket({
     title,
-    description: typeof description === 'string' ? description : null,
-    creator_id: res.locals.userId as number,
+    description,
+    creator_id: creatorId,
   });
-
-  res.status(201).json(ticket);
+  res.status(201).json(newTicket);
 });
 
+// PATCH /tickets/:id/status
 router.patch(
   '/:id/status',
   authMiddleware,
   async (req: Request, res: Response) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
+    const id = parseInt(req.params.id, 10);
+    const { status } = req.body;
+
+    const updatedTicket = await ticketDal.updateTicketStatus(id, status);
+
+    if (!updatedTicket) {
       res.status(404).json({ error: 'Ticket not found' });
       return;
     }
 
-    const { status } = req.body ?? {};
-    if (typeof status !== 'string') {
-      res.status(400).json({ error: 'status is required' });
-      return;
-    }
-
-    const ticket = await updateTicketStatus(id, status);
-    if (!ticket) {
-      res.status(404).json({ error: 'Ticket not found' });
-      return;
-    }
-
-    res.status(200).json(ticket);
+    res.status(200).json(updatedTicket);
   },
 );
 
+// TODO: Student implementation - Part 2: Time Log Routes
+// POST /tickets/:id/time
 router.post(
   '/:id/time',
   authMiddleware,
   async (req: Request, res: Response) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(404).json({ error: 'Ticket not found' });
-      return;
-    }
+    const ticketId = parseInt(req.params.id, 10);
+    const userId = res.locals.userId;
+    const { hours } = req.body;
 
-    const ticket = await getTicketById(id);
-    if (!ticket) {
-      res.status(404).json({ error: 'Ticket not found' });
-      return;
-    }
-
-    const { hours } = req.body ?? {};
-    if (typeof hours !== 'number' || !Number.isFinite(hours) || hours <= 0) {
-      res.status(400).json({ error: 'hours must be a positive number' });
-      return;
-    }
-
-    const timeLog = await insertTimeLog(id, res.locals.userId as number, hours);
-    res.status(201).json(timeLog);
+    const log = await timeLogDal.insertTimeLog(ticketId, userId, hours);
+    res.status(201).json(log);
   },
 );
 
+// GET /tickets/:id/time
 router.get('/:id/time', async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-  if (!Number.isInteger(id)) {
-    res.status(404).json({ error: 'Ticket not found' });
-    return;
-  }
+  const ticketId = parseInt(req.params.id, 10);
+  const totalHours = await timeLogDal.getTotalHoursForTicket(ticketId);
 
-  const ticket = await getTicketById(id);
-  if (!ticket) {
-    res.status(404).json({ error: 'Ticket not found' });
-    return;
-  }
-
-  const totalHours = await getTotalHoursForTicket(id);
-  res.status(200).json({
-    ticket_id: id,
-    total_hours: totalHours,
-  });
+  res.json({ ticket_id: ticketId, total_hours: totalHours });
 });
 
 export default router;

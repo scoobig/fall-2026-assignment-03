@@ -1,16 +1,19 @@
-import { db, TimeLog } from '../db/database.js';
+// TODO: Student implementation - Part 2: DAL for time logs
+
+import { db } from '../db/database.js';
 
 export async function insertTimeLog(
   ticketId: number,
   userId: number,
   hours: number,
-): Promise<TimeLog> {
+): Promise<any> {
+  // TODO: Student implementation
   return await db
     .insertInto('time_logs')
     .values({
       ticket_id: ticketId,
       user_id: userId,
-      hours,
+      hours: hours,
     })
     .returningAll()
     .executeTakeFirstOrThrow();
@@ -19,11 +22,12 @@ export async function insertTimeLog(
 export async function getTotalHoursForTicket(
   ticketId: number,
 ): Promise<number> {
+  // TODO: Student implementation
   const result = await db
     .selectFrom('time_logs')
-    .select((eb) => eb.fn.sum<number>('hours').as('total_hours'))
+    .select(({ fn }) => fn.sum<number>('hours').as('total'))
     .where('ticket_id', '=', ticketId)
     .executeTakeFirst();
 
-  return Number(result?.total_hours ?? 0);
+  return Number(result?.total ?? 0);
 }
